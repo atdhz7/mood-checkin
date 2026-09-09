@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meine Woche – ADHS Check-in</title>
+<style>
+:root{--ink:#171717;--muted:#666;--line:#d0d0d0;--soft:#f6f6f6;--white:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:#ececec;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+.app{max-width:760px;margin:0 auto;padding:16px}
+header{margin-bottom:14px}
+h1{font-size:clamp(29px,8vw,42px);line-height:1;margin:0 0 7px;letter-spacing:-.04em}
+.sub{margin:0;color:var(--muted);font-size:14px;line-height:1.35}
+.actions{display:flex;gap:8px;margin-top:13px}
+button{border:2px solid var(--ink);background:var(--white);color:var(--ink);border-radius:10px;padding:10px 13px;cursor:pointer;font-weight:700;flex:1}
+button:active{transform:translateY(1px)}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #777;outline-offset:2px}.primary{background:var(--ink);color:#fff}
+.card{background:var(--white);border:2px solid var(--ink);border-radius:12px;padding:13px;margin-bottom:13px}
+.meta{display:grid;gap:10px}.field label,.notes label{display:block;color:var(--muted);font-size:12px;font-weight:700;margin:0 0 5px}.field input,.notes textarea{width:100%;border:1px solid #999;border-radius:8px;background:#fff;padding:10px;font-size:16px}
+.day-title{font-size:17px;font-weight:800;margin:0 0 9px}.days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.day{padding:10px 3px;border:2px solid #999;border-radius:8px;background:#fff;font-size:14px}.day.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.instructions{color:var(--muted);font-size:13px;margin:0 0 11px}
+.section{font-size:16px;font-weight:800;background:var(--soft);border:2px solid var(--ink);border-radius:8px;padding:9px 10px;margin:12px 0 5px}
+.item{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:52px;border-bottom:1px solid var(--line);padding:8px 2px;font-size:16px;line-height:1.2}.item:last-child{border-bottom:0}.item span{flex:1}.check{appearance:none;flex:0 0 auto;width:31px;height:31px;border:2px solid var(--ink);border-radius:7px;background:#fff;position:relative;cursor:pointer}.check:checked{background:var(--ink)}.check:checked:after{content:'✓';position:absolute;color:#fff;font-size:25px;font-weight:900;left:3px;top:-2px}
+.progress{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px}.progressbar{height:10px;background:#ddd;border-radius:99px;overflow:hidden;flex:1}.progressbar i{display:block;height:100%;width:0;background:var(--ink)}
+.notes h2{font-size:18px;margin:0 0 10px}.notes textarea{min-height:84px;resize:vertical}.bottom{display:grid;gap:10px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,10px);opacity:0;background:var(--ink);color:#fff;border-radius:10px;padding:11px 14px;pointer-events:none;transition:.2s;font-size:14px;white-space:nowrap}.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(min-width:700px){.app{padding:24px}.meta{grid-template-columns:repeat(3,1fr)}.bottom{grid-template-columns:1fr 1fr}.actions{justify-content:flex-end}.actions button{flex:0 0 auto}}
+@media(max-width:380px){.app{padding:11px}.day{font-size:13px;padding:9px 1px}.item{font-size:15px}.check{width:29px;height:29px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main class="app">
+<header>
+<h1>Meine Woche ★</h1>
+<p class="sub">Einen Tag auswählen und die Punkte einfach untereinander abhaken.</p>
+<div class="actions"><button class="primary" id="export">↓ Exportieren</button><button id="reset">＋ Neue Woche</button></div>
+</header>
+<section class="card meta">
+<div class="field"><label for="week">Woche von – bis</label><input id="week" placeholder="z. B. 08.09. – 14.09."></div>
+<div class="field"><label for="meds">Medikamente / Besonderheiten</label><input id="meds" placeholder="optional"></div>
+<div class="field"><label for="cycle">Zyklus-Notiz</label><input id="cycle" placeholder="z. B. Tag 12, Blutung …"></div>
+</section>
+<section class="card">
+<p class="day-title">Welchen Tag trägst du gerade ein?</p>
+<div class="days" id="days"></div>
+</section>
+<section class="card">
+<p class="instructions">Abends kurz ankreuzen: Was war heute da? Nur beobachten, nicht bewerten.</p>
+<div id="checklist"></div>
+</section>
+<section class="card progress"><strong id="count">0/7 Tage eingecheckt</strong><div class="progressbar"><i id="bar"></i></div><span id="percent">0%</span></section>
+<section class="card notes">
+<h2>Notiz für <span id="noteDay">Mo</span></h2>
+<textarea id="dayNote" placeholder="Was war heute wichtig?"></textarea>
+</section>
+<section class="card bottom">
+<div class="notes"><label for="highfive">♡ Mein Wochen-High-Five</label><textarea id="highfive" placeholder="Was hat gutgetan? Was habe ich geschafft?"></textarea></div>
+<div class="notes"><label for="observe">→ Weiter beobachten</label><textarea id="observe" placeholder="Was möchte ich im Blick behalten?"></textarea></div>
+</section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const days=['Mo','Di','Mi','Do','Fr','Sa','So'];
+const groups=[
+['★ Wohlfühl-Detektiv ★',['Heute insgesamt wohl','Traurig / niedergeschlagen','Unruhig / angespannt','Gereizt / überfordert']],
+['☻ Körper-Check',['Müde / wenig Energie','Kopfschmerzen','Bauch- / Unterleibsschmerzen','Schlecht / nicht erholsam geschlafen','Appetit verändert','Übelkeit / Verdauung / Spannung']],
+['⚡ ADHS-Power & Reiz-Alarm',['Fokus schwierig','Starten / Beenden schwierig','Vergessen / verlegt / verschoben','Impulsiv / sprunghaft','Reizüberflutet / Rückzug nötig']],
+['★ Tages-Booster & Stolpersteine',['ADHS-Medikation genommen','Mehr Koffein als sonst','Stressiger / emotionaler Tag','Bewegung / frische Luft tat gut','Etwas Schönes / Erfolg']]
+];
+const state={day:0,checks:{},notes:Array(7).fill(''),week:'',meds:'',cycle:'',highfive:'',observe:''};
+const daysEl=document.getElementById('days'), list=document.getElementById('checklist');
+function make(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e}
+function buildDays(){days.forEach((d,i)=>{const b=make('button','day',d);b.type='button';b.onclick=()=>{saveCurrentNote();state.day=i;renderDays();renderList()};daysEl.append(b)})}
+function renderDays(){[...daysEl.children].forEach((b,i)=>b.classList.toggle('active',i===state.day));document.getElementById('noteDay').textContent=days[state.day];document.getElementById('dayNote').value=state.notes[state.day]||''}
+function renderList(){list.innerHTML='';groups.forEach((group,gi)=>{list.append(make('div','section',group[0]));group[1].forEach((label,ri)=>{const row=make('label','item');const text=make('span','',label);const box=make('input','check');box.type='checkbox';box.checked=!!state.checks[`${state.day}-${gi}-${ri}`];box.onchange=()=>{state.checks[`${state.day}-${gi}-${ri}`]=box.checked;update()};row.append(text,box);list.append(row)})})}
+function saveCurrentNote(){state.notes[state.day]=document.getElementById('dayNote').value}
+function update(){const completed=new Set(Object.keys(state.checks).filter(k=>state.checks[k]).map(k=>k.split('-')[0]));const n=completed.size;document.getElementById('count').textContent=`${n}/7 Tage eingecheckt`;document.getElementById('percent').textContent=`${Math.round(n/7*100)}%`;document.getElementById('bar').style.width=`${n/7*100}%`}
+function sync(){['week','meds','cycle','highfive','observe'].forEach(id=>{document.getElementById(id).oninput=e=>state[id]=e.target.value});document.getElementById('dayNote').oninput=e=>state.notes[state.day]=e.target.value}
+function toast(text){const t=document.getElementById('toast');t.textContent=text;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+document.getElementById('reset').onclick=()=>{if(confirm('Neue Woche starten? Alle aktuellen Kreuze und Notizen werden gelöscht.'))location.reload()};
+document.getElementById('export').onclick=()=>{saveCurrentNote();['week','meds','cycle','highfive','observe'].forEach(id=>state[id]=document.getElementById(id).value);const blob=new Blob([JSON.stringify({wochentage:days,...state},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='adhs-wochen-checkin.json';a.click();URL.revokeObjectURL(a.href);toast('Export gespeichert ★')};
+buildDays();sync();renderDays();renderList();update();
+</script>
+</body>
+</html>
